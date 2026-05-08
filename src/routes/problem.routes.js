@@ -9,6 +9,7 @@ import {
 } from "../controllers/problem.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { verifyAdmin } from "../middlewares/admin.middleware.js";
+import { getLeaderboard } from "../controllers/problem.controller.js";
 
 const router = express.Router();
 
@@ -23,5 +24,6 @@ router.get("/:id", verifyJWT, getProblemById);
 router.post("/", verifyJWT, verifyAdmin, addProblem);
 router.put("/:id", verifyJWT, verifyAdmin, updateProblem);
 router.delete("/:id", verifyJWT, verifyAdmin, deleteProblem);
+router.get("/leaderboard/all", verifyJWT, getLeaderboard);
 
 export default router;

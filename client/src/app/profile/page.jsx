@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { CheckCircle, Code2, Trophy, User } from "lucide-react";
+import { CheckCircle, Code2, Trophy, Target } from "lucide-react";
 import Link from "next/link";
 
 const difficultyColors = {
@@ -14,28 +14,38 @@ const difficultyColors = {
 };
 
 export default function ProfilePage() {
-  // ✅ ALL hooks at top
   const { user, loading: authLoading } = useAuth();
   const [solvedProblems, setSolvedProblems] = useState([]);
+  const [totalProblems, setTotalProblems] = useState({ Easy: 0, Medium: 0, Hard: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) return;
-    fetchSolvedProblems();
+    fetchData();
   }, [authLoading]);
 
-  const fetchSolvedProblems = async () => {
+  const fetchData = async () => {
     try {
-      const res = await api.get("/problems/solved");
-      setSolvedProblems(res.data.solvedProblems);
+      const [solvedRes, allRes] = await Promise.all([
+        api.get("/problems/solved"),
+        api.get("/problems"),
+      ]);
+
+      setSolvedProblems(solvedRes.data.solvedProblems);
+
+      const all = allRes.data.problems;
+      setTotalProblems({
+        Easy: all.filter((p) => p.difficulty === "Easy").length,
+        Medium: all.filter((p) => p.difficulty === "Medium").length,
+        Hard: all.filter((p) => p.difficulty === "Hard").length,
+      });
     } catch {
-      toast.error("Failed to fetch solved problems");
+      toast.error("Failed to fetch data");
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ conditions after all hooks
   if (authLoading) {
     return (
       <div className="flex min-h-screen bg-gray-950 items-center justify-center">
@@ -44,10 +54,14 @@ export default function ProfilePage() {
     );
   }
 
-  // Count by difficulty
   const easyCount = solvedProblems.filter((p) => p.difficulty === "Easy").length;
   const mediumCount = solvedProblems.filter((p) => p.difficulty === "Medium").length;
   const hardCount = solvedProblems.filter((p) => p.difficulty === "Hard").length;
+
+  const getProgressWidth = (solved, total) => {
+    if (total === 0) return 0;
+    return Math.round((solved / total) * 100);
+  };
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -75,28 +89,76 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Stats Card */}
+            {/* Progress Stats */}
             <div className="bg-gray-900 rounded-2xl p-6">
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                <Trophy size={18} className="text-yellow-400" />
+                <Target size={18} className="text-yellow-400" />
                 Progress
               </h3>
+
+              {/* Total solved circle */}
+              <div className="flex items-center justify-center mb-6">
+                <div className="relative">
+                  <svg className="w-24 h-24 -rotate-90">
+                    <circle cx="48" cy="48" r="40" fill="none" stroke="#374151" strokeWidth="8" />
+                    <circle
+                      cx="48" cy="48" r="40" fill="none"
+                      stroke="#EAB308"
+                      strokeWidth="8"
+                      strokeDasharray={`${2 * Math.PI * 40}`}
+                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - getProgressWidth(solvedProblems.length, totalProblems.Easy + totalProblems.Medium + totalProblems.Hard) / 100)}`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-white text-xl font-bold">{solvedProblems.length}</span>
+                    <span className="text-gray-400 text-xs">solved</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress bars */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-green-400 text-sm">Easy</span>
-                  <span className="text-white font-bold">{easyCount}</span>
+                {/* Easy */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-green-400 text-sm">Easy</span>
+                    <span className="text-gray-400 text-sm">{easyCount}/{totalProblems.Easy}</span>
+                  </div>
+                  <div className="bg-gray-800 rounded-full h-2">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all"
+                      style={{ width: `${getProgressWidth(easyCount, totalProblems.Easy)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-yellow-400 text-sm">Medium</span>
-                  <span className="text-white font-bold">{mediumCount}</span>
+
+                {/* Medium */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-yellow-400 text-sm">Medium</span>
+                    <span className="text-gray-400 text-sm">{mediumCount}/{totalProblems.Medium}</span>
+                  </div>
+                  <div className="bg-gray-800 rounded-full h-2">
+                    <div
+                      className="bg-yellow-500 h-2 rounded-full transition-all"
+                      style={{ width: `${getProgressWidth(mediumCount, totalProblems.Medium)}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-red-400 text-sm">Hard</span>
-                  <span className="text-white font-bold">{hardCount}</span>
-                </div>
-                <div className="border-t border-gray-800 pt-3 flex items-center justify-between">
-                  <span className="text-gray-400 text-sm">Total Solved</span>
-                  <span className="text-white font-bold">{solvedProblems.length}</span>
+
+                {/* Hard */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-red-400 text-sm">Hard</span>
+                    <span className="text-gray-400 text-sm">{hardCount}/{totalProblems.Hard}</span>
+                  </div>
+                  <div className="bg-gray-800 rounded-full h-2">
+                    <div
+                      className="bg-red-500 h-2 rounded-full transition-all"
+                      style={{ width: `${getProgressWidth(hardCount, totalProblems.Hard)}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

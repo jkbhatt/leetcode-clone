@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
 import { Code2, LogOut, User, Shield } from "lucide-react";
+import { Code2, LogOut, User, Shield, Trophy } from "lucide-react";
 
 export default function Navbar({ user }) {
   const router = useRouter();
@@ -54,6 +55,12 @@ export default function Navbar({ user }) {
           >
             <User size={16} />
             {user?.username}
+          </Link>
+
+          <Link
+            href="/leaderboard" 
+            className="flex items-center gap-1 text-gray-400 hover:text-white transition text-sm font-medium">
+            <Trophy size={16} />Leaderboard
           </Link>
 
           {/* Logout */}
