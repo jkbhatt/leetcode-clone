@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
-import { Code2, LogOut, User, Shield } from "lucide-react";
 import { Code2, LogOut, User, Shield, Trophy } from "lucide-react";
 
 export default function Navbar({ user }) {
