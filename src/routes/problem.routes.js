@@ -6,24 +6,43 @@ import {
   updateProblem,
   deleteProblem,
   getSolvedProblems,
+  getLeaderboard,
 } from "../controllers/problem.controller.js";
+
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { verifyAdmin } from "../middlewares/admin.middleware.js";
-import { getLeaderboard } from "../controllers/problem.controller.js";
 
 const router = express.Router();
 
 // ✅ Public routes
 router.get("/", getAllProblems);
 
-// ✅ Protected routes (login required)
+// ✅ Protected routes
 router.get("/solved", verifyJWT, getSolvedProblems);
 router.get("/:id", verifyJWT, getProblemById);
 
-// ✅ Admin only routes
+// ✅ Admin routes
 router.post("/", verifyJWT, verifyAdmin, addProblem);
-router.put("/:id", verifyJWT, verifyAdmin, updateProblem);
-router.delete("/:id", verifyJWT, verifyAdmin, deleteProblem);
-router.get("/leaderboard/all", verifyJWT, getLeaderboard);
+
+router.put(
+  "/:id",
+  verifyJWT,
+  verifyAdmin,
+  updateProblem
+);
+
+router.delete(
+  "/:id",
+  verifyJWT,
+  verifyAdmin,
+  deleteProblem
+);
+
+// ✅ Leaderboard
+router.get(
+  "/leaderboard/all",
+  verifyJWT,
+  getLeaderboard
+);
 
 export default router;
