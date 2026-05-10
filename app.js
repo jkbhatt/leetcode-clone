@@ -5,14 +5,16 @@ import cookieParser from "cookie-parser";
 export const app = express();
 
 // ✅ CORS Configuration
-app.use(
-  cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors({
+  origin: [
+    "http://localhost:3000",
+    "https://leetcode-clone-black.vercel.app",
+    "https://leetcode-clone-hwnl1fxpk-jkbhatts-projects.vercel.app"
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
 
 // ✅ Middlewares
 app.use(express.json());
