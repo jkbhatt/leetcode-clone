@@ -6,20 +6,15 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import {
   CheckCircle, Code2, Trophy, Target, Zap, Award,
-  TrendingUp, Calendar, Star, ArrowRight
+  TrendingUp, Calendar, Star, ArrowRight, Lock
 } from "lucide-react";
 import Link from "next/link";
+import { ACHIEVEMENTS } from "@/components/Navbar";
 
 const difficultyColors = {
   Easy: "text-green-400 bg-green-900/40 border border-green-800",
   Medium: "text-yellow-400 bg-yellow-900/40 border border-yellow-800",
   Hard: "text-red-400 bg-red-900/40 border border-red-800",
-};
-
-const difficultyBar = {
-  Easy: "bg-green-500",
-  Medium: "bg-yellow-500",
-  Hard: "bg-red-500",
 };
 
 export default function ProfilePage() {
@@ -71,17 +66,16 @@ export default function ProfilePage() {
   const totalSolved = solvedProblems.length;
   const totalAll = totalProblems.Easy + totalProblems.Medium + totalProblems.Hard;
 
+  const solvedStats = { total: totalSolved, easy: easyCount, medium: mediumCount, hard: hardCount };
+
   const getProgressWidth = (solved, total) => {
     if (total === 0) return 0;
     return Math.round((solved / total) * 100);
   };
 
   const overallProgress = getProgressWidth(totalSolved, totalAll);
-
-  // Score calculation
   const score = easyCount * 10 + mediumCount * 25 + hardCount * 50;
 
-  // Rank based on score
   const getRank = (score) => {
     if (score >= 500) return { label: "Legend", color: "text-yellow-400", icon: "🏆" };
     if (score >= 200) return { label: "Expert", color: "text-purple-400", icon: "⚡" };
@@ -100,21 +94,23 @@ export default function ProfilePage() {
     ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })
     : "Recently";
 
+  // Calculate unlocked achievements
+  const unlockedAchievements = ACHIEVEMENTS.filter((a) => a.condition(solvedStats));
+  const lockedAchievements = ACHIEVEMENTS.filter((a) => !a.condition(solvedStats));
+
   return (
     <div className="min-h-screen bg-gray-950">
       <Toaster position="top-right" />
-      <Navbar user={user} />
+      <Navbar user={user} solvedStats={solvedStats} />
 
       <main className="max-w-6xl mx-auto px-4 py-8">
 
         {/* ── Top Banner ── */}
         <div className="relative bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800 rounded-3xl p-8 mb-6 overflow-hidden border border-gray-800">
-          {/* Decorative circles */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/5 rounded-full -translate-y-1/2 translate-x-1/4" />
           <div className="absolute bottom-0 right-24 w-32 h-32 bg-yellow-500/5 rounded-full translate-y-1/2" />
 
           <div className="relative flex items-center gap-6">
-            {/* Avatar */}
             <div className="relative">
               <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-500/20">
                 <span className="text-black text-4xl font-black">
@@ -126,30 +122,29 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* User Info */}
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-white text-2xl font-bold">{user?.username}</h1>
                 {user?.role === "admin" && (
-                  <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-800">
-                    Admin
-                  </span>
+                  <span className="text-xs bg-yellow-900/50 text-yellow-400 px-2 py-0.5 rounded-full border border-yellow-800">Admin</span>
                 )}
               </div>
               <p className="text-gray-400 text-sm mb-3">{user?.email}</p>
               <div className="flex items-center gap-4">
-                <span className={`text-sm font-semibold ${rank.color}`}>
-                  {rank.icon} {rank.label}
-                </span>
+                <span className={`text-sm font-semibold ${rank.color}`}>{rank.icon} {rank.label}</span>
                 <span className="text-gray-600">•</span>
                 <span className="text-gray-400 text-sm flex items-center gap-1">
                   <Calendar size={13} />
                   Joined {joinDate}
                 </span>
+                <span className="text-gray-600">•</span>
+                <span className="text-gray-400 text-sm flex items-center gap-1">
+                  <Award size={13} className="text-yellow-400" />
+                  {unlockedAchievements.length}/{ACHIEVEMENTS.length} badges
+                </span>
               </div>
             </div>
 
-            {/* Score */}
             <div className="text-center hidden md:block">
               <div className="text-3xl font-black text-yellow-400">{score}</div>
               <div className="text-gray-400 text-xs mt-1">Total Score</div>
@@ -177,7 +172,7 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-          {/* ── Left: Progress ── */}
+          {/* ── Left: Progress + Achievements ── */}
           <div className="space-y-4">
 
             {/* Overall Progress */}
@@ -187,7 +182,6 @@ export default function ProfilePage() {
                 Overall Progress
               </h3>
 
-              {/* Circle */}
               <div className="flex items-center justify-center mb-6">
                 <div className="relative">
                   <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
@@ -209,7 +203,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Progress Bars */}
               <div className="space-y-4">
                 {[
                   { label: "Easy", solved: easyCount, total: totalProblems.Easy, color: "bg-green-500", textColor: "text-green-400" },
@@ -222,39 +215,51 @@ export default function ProfilePage() {
                       <span className="text-gray-400 text-sm">{solved}/{total}</span>
                     </div>
                     <div className="bg-gray-800 rounded-full h-2">
-                      <div
-                        className={`${color} h-2 rounded-full transition-all duration-700`}
-                        style={{ width: `${getProgressWidth(solved, total)}%` }}
-                      />
+                      <div className={`${color} h-2 rounded-full transition-all duration-700`} style={{ width: `${getProgressWidth(solved, total)}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Achievements */}
+            {/* ✅ Achievements Panel */}
             <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                 <Award size={16} className="text-yellow-400" />
                 Achievements
+                <span className="text-gray-500 font-normal text-sm ml-auto">{unlockedAchievements.length}/{ACHIEVEMENTS.length}</span>
               </h3>
-              <div className="space-y-3">
-                {[
-                  { label: "First Solve", desc: "Solved your first problem", unlocked: totalSolved >= 1, icon: "🎯" },
-                  { label: "Easy Streak", desc: "Solved 2+ easy problems", unlocked: easyCount >= 2, icon: "⚡" },
-                  { label: "Problem Crusher", desc: "Solved 5+ problems", unlocked: totalSolved >= 5, icon: "💪" },
-                  { label: "Hard Mode", desc: "Solved a hard problem", unlocked: hardCount >= 1, icon: "🔥" },
-                ].map(({ label, desc, unlocked, icon }) => (
-                  <div key={label} className={`flex items-center gap-3 p-3 rounded-xl ${unlocked ? "bg-yellow-900/20 border border-yellow-800/50" : "bg-gray-800/50 border border-gray-700/50 opacity-50"}`}>
-                    <span className="text-xl">{icon}</span>
-                    <div>
-                      <div className={`text-sm font-medium ${unlocked ? "text-white" : "text-gray-500"}`}>{label}</div>
-                      <div className="text-xs text-gray-500">{desc}</div>
+
+              {/* Unlocked */}
+              <div className="space-y-2 mb-3">
+                {unlockedAchievements.map((a) => (
+                  <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-yellow-900/20 border border-yellow-800/50">
+                    <span className="text-xl">{a.icon}</span>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-white">{a.label}</div>
+                      <div className="text-xs text-gray-400">{a.desc}</div>
                     </div>
-                    {unlocked && <CheckCircle size={14} className="text-yellow-400 ml-auto" />}
+                    <CheckCircle size={14} className="text-yellow-400" />
                   </div>
                 ))}
               </div>
+
+              {/* Locked */}
+              {lockedAchievements.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-gray-600 text-xs uppercase tracking-wide mb-2">Locked</p>
+                  {lockedAchievements.map((a) => (
+                    <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-800/50 border border-gray-700/50 opacity-50">
+                      <span className="text-xl grayscale">{a.icon}</span>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-gray-500">{a.label}</div>
+                        <div className="text-xs text-gray-600">{a.desc}</div>
+                      </div>
+                      <Lock size={12} className="text-gray-600" />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -268,16 +273,13 @@ export default function ProfilePage() {
                   <span className="text-gray-500 font-normal text-sm">({totalSolved})</span>
                 </h3>
 
-                {/* Filter Tabs */}
                 <div className="flex gap-1 bg-gray-800 rounded-lg p-1">
                   {["All", "Easy", "Medium", "Hard"].map((f) => (
                     <button
                       key={f}
                       onClick={() => setActiveFilter(f)}
                       className={`px-3 py-1 rounded-md text-xs font-medium transition ${
-                        activeFilter === f
-                          ? "bg-yellow-500 text-black"
-                          : "text-gray-400 hover:text-white"
+                        activeFilter === f ? "bg-yellow-500 text-black" : "text-gray-400 hover:text-white"
                       }`}
                     >
                       {f}
@@ -296,16 +298,13 @@ export default function ProfilePage() {
                   <p className="text-gray-400 mb-1">
                     {activeFilter === "All" ? "No problems solved yet!" : `No ${activeFilter} problems solved yet!`}
                   </p>
-                  <Link
-                    href="/problems"
-                    className="inline-flex items-center gap-1 mt-3 text-yellow-400 hover:text-yellow-300 text-sm transition"
-                  >
+                  <Link href="/problems" className="inline-flex items-center gap-1 mt-3 text-yellow-400 hover:text-yellow-300 text-sm transition">
                     Start solving <ArrowRight size={14} />
                   </Link>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                  {filteredProblems.map((problem, i) => (
+                  {filteredProblems.map((problem) => (
                     <Link
                       key={problem._id}
                       href={`/problems/${problem._id}`}
@@ -339,14 +338,10 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Footer */}
               {totalSolved < totalAll && (
                 <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between">
                   <span className="text-gray-500 text-sm">{totalAll - totalSolved} problems remaining</span>
-                  <Link
-                    href="/problems"
-                    className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 text-sm transition"
-                  >
+                  <Link href="/problems" className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 text-sm transition">
                     Solve more <ArrowRight size={14} />
                   </Link>
                 </div>
