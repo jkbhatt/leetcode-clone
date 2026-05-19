@@ -111,23 +111,25 @@ export default function ProblemDetailPage() {
 
   // ✅ Fetch hint from backend
   const handleGetHint = async () => {
-    setHintLoading(true);
-    setHints(null);
-    try {
-      const res = await api.post("/hints", {
-        problemId: id,
-        userCode: code,
-        language,
-        hintLevel,
-      });
-      setHints(res.data.data.hints);
-      toast.success(`Level ${hintLevel} hint generated!`);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to get hint");
-    } finally {
-      setHintLoading(false);
-    }
-  };
+  setHintLoading(true);
+  setHints(null);
+  try {
+    const res = await api.post("/hints", {
+      problemId: id,
+      userCode: code,
+      language,
+      hintLevel,
+    });
+    console.log("HINT RESPONSE:", JSON.stringify(res)); // ✅ add this
+    setHints(res.data.hints);
+    toast.success(`Level ${hintLevel} hint generated!`);
+  } catch (err) {
+    console.log("HINT ERROR:", err); // ✅ add this
+    toast.error(err?.response?.data?.message || "Failed to get hint");
+  } finally {
+    setHintLoading(false);
+  }
+};
 
   const openHintPanel = () => {
     setShowHintPanel(true);
