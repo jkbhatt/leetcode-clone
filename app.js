@@ -4,11 +4,12 @@ import cookieParser from "cookie-parser";
 
 export const app = express();
 
-// ✅ CORS Configuration - FIRST
 app.use(cors({
   origin: [
     "http://localhost:3000",
     "https://leetcode-clone-black.vercel.app",
+    "https://leetcode-clone-git-main-jkbhatts-projects.vercel.app",
+    "https://leetcode-clone-ek6z84297-jkbhatts-projects.vercel.app",
     "https://leetcode-clone-hwnl1fxpk-jkbhatts-projects.vercel.app"
   ],
   credentials: true,
