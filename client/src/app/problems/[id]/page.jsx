@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import CodeEditor from "@/components/CodeEditor";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Play, Send, ChevronLeft, CheckCircle, XCircle, Lightbulb, X, ChevronRight } from "lucide-react";
+import { Play, Send, ChevronLeft, CheckCircle, XCircle, Lightbulb, X, ChevronRight, Timer, Pause, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import Discussion from "@/components/Discussion";
 
@@ -45,6 +45,50 @@ export default function ProblemDetailPage() {
   const [hintLevel, setHintLevel] = useState(1);
   const [hints, setHints] = useState(null);
   const [hintLoading, setHintLoading] = useState(false);
+
+  // ✅ Timer state
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const timerRef = useRef(null);
+
+  // Timer logic
+  useEffect(() => {
+    if (timerRunning) {
+      timerRef.current = setInterval(() => {
+        setTimerSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [timerRunning]);
+
+  // Auto start timer when problem loads
+  useEffect(() => {
+    if (problem && !isSolved) {
+      setTimerRunning(true);
+    }
+  }, [problem]);
+
+  // Stop timer when solved
+  useEffect(() => {
+    if (isSolved) {
+      setTimerRunning(false);
+    }
+  }, [isSolved]);
+
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
+
+  const resetTimer = () => {
+    setTimerSeconds(0);
+    setTimerRunning(false);
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -99,7 +143,7 @@ export default function ProblemDetailPage() {
       setActiveTab("results");
       if (res.data.submission.status === "Accepted") {
         setIsSolved(true);
-        toast.success("🎉 Accepted! All test cases passed!");
+        toast.success(`🎉 Accepted! Solved in ${formatTime(timerSeconds)}!`);
       } else {
         toast.error(res.data.submission.status);
       }
@@ -112,23 +156,23 @@ export default function ProblemDetailPage() {
 
   // ✅ Fetch hint from backend
   const handleGetHint = async (levelToUse = hintLevel) => {
-  setHintLoading(true);
-  setHints(null);
-  try {
-    const res = await api.post("/hints", {
-      problemId: id,
-      userCode: code,
-      language,
-      hintLevel: levelToUse, // ✅ use passed level not state
-    });
-    setHints(res.data.hints);
-    toast.success(`Level ${levelToUse} hint generated!`);
-  } catch (err) {
-    toast.error(err.message || "Failed to get hint");
-  } finally {
-    setHintLoading(false);
-  }
-};
+    setHintLoading(true);
+    setHints(null);
+    try {
+      const res = await api.post("/hints", {
+        problemId: id,
+        userCode: code,
+        language,
+        hintLevel: levelToUse,
+      });
+      setHints(res.data.hints);
+      toast.success(`Level ${levelToUse} hint generated!`);
+    } catch (err) {
+      toast.error(err.message || "Failed to get hint");
+    } finally {
+      setHintLoading(false);
+    }
+  };
 
   const openHintPanel = () => {
     setShowHintPanel(true);
@@ -201,32 +245,30 @@ export default function ProblemDetailPage() {
               Description
             </button>
             <button
-  onClick={() => setActiveTab("results")}
-  className={`px-6 py-3 text-sm font-medium transition ${
-    activeTab === "results"
-      ? "text-white border-b-2 border-yellow-400"
-      : "text-gray-400 hover:text-white"
-  }`}
->
-  Results
-</button>
-
-{/* ✅ Add this below */}
-<button
-  onClick={() => setActiveTab("discussion")}
-  className={`px-6 py-3 text-sm font-medium transition ${
-    activeTab === "discussion"
-      ? "text-white border-b-2 border-yellow-400"
-      : "text-gray-400 hover:text-white"
-  }`}
->
-  Discussion
-</button>
+              onClick={() => setActiveTab("results")}
+              className={`px-6 py-3 text-sm font-medium transition ${
+                activeTab === "results"
+                  ? "text-white border-b-2 border-yellow-400"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Results
+            </button>
+            <button
+              onClick={() => setActiveTab("discussion")}
+              className={`px-6 py-3 text-sm font-medium transition ${
+                activeTab === "discussion"
+                  ? "text-white border-b-2 border-yellow-400"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Discussion
+            </button>
           </div>
 
           {/* Tab content */}
           <div className="p-6 flex-1">
-            {activeTab === "description" ? (
+            {activeTab === "description" && (
               <div className="space-y-6">
                 <div>
                   <p className="text-gray-300 leading-relaxed">{problem.description}</p>
@@ -265,7 +307,9 @@ export default function ProblemDetailPage() {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+
+            {activeTab === "results" && (
               <div className="space-y-4">
                 {submitResult && (
                   <div className={`bg-gray-800 rounded-xl p-4 border ${
@@ -342,11 +386,11 @@ export default function ProblemDetailPage() {
                     </p>
                   </div>
                 )}
-                {/* ✅ Add this below */}
-{activeTab === "discussion" && (
-  <Discussion problemId={id} currentUser={user} />
-)}
               </div>
+            )}
+
+            {activeTab === "discussion" && (
+              <Discussion problemId={id} currentUser={user} />
             )}
           </div>
         </div>
@@ -357,21 +401,16 @@ export default function ProblemDetailPage() {
           {/* ✅ Hint Panel Overlay */}
           {showHintPanel && (
             <div className="absolute inset-0 z-10 bg-gray-900 flex flex-col border-l border-gray-700">
-              {/* Hint Panel Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-900">
                 <div className="flex items-center gap-2">
                   <Lightbulb size={18} className="text-yellow-400" />
                   <span className="text-white font-semibold">AI Hint</span>
                 </div>
-                <button
-                  onClick={() => setShowHintPanel(false)}
-                  className="text-gray-400 hover:text-white transition"
-                >
+                <button onClick={() => setShowHintPanel(false)} className="text-gray-400 hover:text-white transition">
                   <X size={20} />
                 </button>
               </div>
 
-              {/* Hint Level Selector */}
               <div className="px-6 py-4 border-b border-gray-700">
                 <p className="text-gray-400 text-sm mb-3">Select hint level:</p>
                 <div className="flex gap-2">
@@ -384,16 +423,13 @@ export default function ProblemDetailPage() {
                       key={level}
                       onClick={() => { setHintLevel(level); setHints(null); }}
                       className={`flex-1 py-2 rounded-lg border text-sm font-medium transition ${
-                        hintLevel === level
-                          ? `${color} bg-gray-800`
-                          : "border-gray-600 text-gray-400 hover:border-gray-400"
+                        hintLevel === level ? `${color} bg-gray-800` : "border-gray-600 text-gray-400 hover:border-gray-400"
                       }`}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
-
                 <button
                   onClick={handleGetHint}
                   disabled={hintLoading}
@@ -404,7 +440,6 @@ export default function ProblemDetailPage() {
                 </button>
               </div>
 
-              {/* Hint Content */}
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 {hintLoading && (
                   <div className="flex items-center justify-center mt-10">
@@ -417,36 +452,21 @@ export default function ProblemDetailPage() {
 
                 {hints && !hintLoading && (
                   <div className="space-y-4">
-                    {/* Logic Hint */}
                     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-blue-400 text-xs font-semibold uppercase tracking-wide">Logic</span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed">{hints.logicHint}</p>
+                      <span className="text-blue-400 text-xs font-semibold uppercase tracking-wide">Logic</span>
+                      <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints.logicHint}</p>
                     </div>
-
-                    {/* Complexity Hint */}
                     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-purple-400 text-xs font-semibold uppercase tracking-wide">Complexity</span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed">{hints.complexityHint}</p>
+                      <span className="text-purple-400 text-xs font-semibold uppercase tracking-wide">Complexity</span>
+                      <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints.complexityHint}</p>
                     </div>
-
-                    {/* Edge Case Hint */}
                     <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-orange-400 text-xs font-semibold uppercase tracking-wide">Edge Cases</span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed">{hints.edgeCaseHint}</p>
+                      <span className="text-orange-400 text-xs font-semibold uppercase tracking-wide">Edge Cases</span>
+                      <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints.edgeCaseHint}</p>
                     </div>
-
-                    {/* Encouragement */}
                     <div className="bg-yellow-500/10 rounded-xl p-4 border border-yellow-500/30">
                       <p className="text-yellow-300 text-sm leading-relaxed">💪 {hints.encouragement}</p>
                     </div>
-
-                    {/* Level up button */}
                     {hintLevel < 3 && (
                       <button
                         onClick={() => { setHintLevel(h => h + 1); setHints(null); }}
@@ -498,10 +518,31 @@ export default function ProblemDetailPage() {
                 <Lightbulb size={15} />
                 Hint
               </button>
+
+              {/* ✅ Timer */}
+              <div className="flex items-center gap-1.5 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
+                <Timer size={14} className={timerRunning ? "text-yellow-400" : "text-gray-500"} />
+                <span className={`text-sm font-mono font-semibold ${isSolved ? "text-green-400" : timerRunning ? "text-white" : "text-gray-400"}`}>
+                  {formatTime(timerSeconds)}
+                </span>
+                <button
+                  onClick={() => setTimerRunning(!timerRunning)}
+                  className="text-gray-500 hover:text-white transition ml-1"
+                  title={timerRunning ? "Pause" : "Start"}
+                >
+                  {timerRunning ? <Pause size={12} /> : <Play size={12} />}
+                </button>
+                <button
+                  onClick={resetTimer}
+                  className="text-gray-500 hover:text-white transition"
+                  title="Reset"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-3">
-              {/* Run button */}
               <button
                 onClick={handleRun}
                 disabled={running || submitting}
@@ -511,7 +552,6 @@ export default function ProblemDetailPage() {
                 {running ? "Running..." : "Run"}
               </button>
 
-              {/* Submit button */}
               <button
                 onClick={handleSubmit}
                 disabled={running || submitting}
