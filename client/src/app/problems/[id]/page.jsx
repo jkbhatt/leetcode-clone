@@ -120,11 +120,11 @@ export default function ProblemDetailPage() {
       language,
       hintLevel,
     });
-    console.log("HINT RESPONSE:", JSON.stringify(res));
+    alert(JSON.stringify(res)); // ✅ will show popup with exact response
     setHints(res.data.hints);
     toast.success(`Level ${hintLevel} hint generated!`);
   } catch (err) {
-    console.log("HINT ERROR:", err.message);
+    alert("ERROR: " + err.message); // ✅ will show exact error
     toast.error(err.message || "Failed to get hint");
   } finally {
     setHintLoading(false);
