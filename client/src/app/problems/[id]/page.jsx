@@ -8,6 +8,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Play, Send, ChevronLeft, CheckCircle, XCircle, Lightbulb, X, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import Discussion from "@/components/Discussion";
 
 const difficultyColors = {
   Easy: "text-green-400 bg-green-900",
@@ -200,15 +201,27 @@ export default function ProblemDetailPage() {
               Description
             </button>
             <button
-              onClick={() => setActiveTab("results")}
-              className={`px-6 py-3 text-sm font-medium transition ${
-                activeTab === "results"
-                  ? "text-white border-b-2 border-yellow-400"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Results
-            </button>
+  onClick={() => setActiveTab("results")}
+  className={`px-6 py-3 text-sm font-medium transition ${
+    activeTab === "results"
+      ? "text-white border-b-2 border-yellow-400"
+      : "text-gray-400 hover:text-white"
+  }`}
+>
+  Results
+</button>
+
+{/* ✅ Add this below */}
+<button
+  onClick={() => setActiveTab("discussion")}
+  className={`px-6 py-3 text-sm font-medium transition ${
+    activeTab === "discussion"
+      ? "text-white border-b-2 border-yellow-400"
+      : "text-gray-400 hover:text-white"
+  }`}
+>
+  Discussion
+</button>
           </div>
 
           {/* Tab content */}
@@ -329,6 +342,10 @@ export default function ProblemDetailPage() {
                     </p>
                   </div>
                 )}
+                {/* ✅ Add this below */}
+{activeTab === "discussion" && (
+  <Discussion problemId={id} currentUser={user} />
+)}
               </div>
             )}
           </div>

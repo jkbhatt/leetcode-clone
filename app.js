@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import discussionRouter from "./src/routes/discussion.routes.js";
 
 export const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/problems", problemRouter);
 app.use("/api/v1/submissions", submissionRouter);
 app.use("/api/v1/hints", hintRouter); // ✅ Now AFTER express.json()
+app.use("/api/v1/problems/:problemId/discussions", discussionRouter);
 
 // ✅ Health Check Route
 app.get("/api/v1/healthcheck", (req, res) => {
