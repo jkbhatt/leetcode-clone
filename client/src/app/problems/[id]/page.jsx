@@ -124,8 +124,8 @@ export default function ProblemDetailPage() {
     setHints(res.data.hints);
     toast.success(`Level ${hintLevel} hint generated!`);
   } catch (err) {
-    console.log("HINT ERROR:", err.message); // ✅ just err.message
-    toast.error(err.message || "Failed to get hint"); // ✅ fixed
+    console.log("HINT ERROR:", err.message);
+    toast.error(err.message || "Failed to get hint");
   } finally {
     setHintLoading(false);
   }
