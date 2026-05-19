@@ -110,7 +110,7 @@ export default function ProblemDetailPage() {
   };
 
   // ✅ Fetch hint from backend
-  const handleGetHint = async () => {
+  const handleGetHint = async (levelToUse = hintLevel) => {
   setHintLoading(true);
   setHints(null);
   try {
@@ -118,13 +118,11 @@ export default function ProblemDetailPage() {
       problemId: id,
       userCode: code,
       language,
-      hintLevel,
+      hintLevel: levelToUse, // ✅ use passed level not state
     });
-    alert(JSON.stringify(res)); // ✅ will show popup with exact response
     setHints(res.data.hints);
-    toast.success(`Level ${hintLevel} hint generated!`);
+    toast.success(`Level ${levelToUse} hint generated!`);
   } catch (err) {
-    alert("ERROR: " + err.message); // ✅ will show exact error
     toast.error(err.message || "Failed to get hint");
   } finally {
     setHintLoading(false);
