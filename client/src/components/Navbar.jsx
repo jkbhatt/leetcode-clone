@@ -3,14 +3,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import toast from "react-hot-toast";
-import { Code2, LogOut, User, Shield, Trophy, Bell, X, Award } from "lucide-react";
+import { Code2, LogOut, User, Shield, Trophy, Bell, X, Award, Sun, Moon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 
 // ✅ All achievements definition (shared across app)
 export const ACHIEVEMENTS = [
   { id: "first_solve", label: "First Blood", desc: "Solved your first problem", icon: "🎯", condition: (s) => s.total >= 1 },
-  { id: "easy_5", label: "Easy Rider", desc: "Solved 5 easy problems", icon: "⚡", condition: (s) => s.easy >= 5 },
   { id: "easy_2", label: "Warming Up", desc: "Solved 2 easy problems", icon: "🔥", condition: (s) => s.easy >= 2 },
+  { id: "easy_5", label: "Easy Rider", desc: "Solved 5 easy problems", icon: "⚡", condition: (s) => s.easy >= 5 },
   { id: "medium_1", label: "Rising Star", desc: "Solved a medium problem", icon: "⭐", condition: (s) => s.medium >= 1 },
   { id: "medium_3", label: "Problem Crusher", desc: "Solved 3 medium problems", icon: "💪", condition: (s) => s.medium >= 3 },
   { id: "hard_1", label: "Hard Mode", desc: "Solved a hard problem", icon: "🔥", condition: (s) => s.hard >= 1 },
@@ -20,12 +21,12 @@ export const ACHIEVEMENTS = [
 
 export default function Navbar({ user, solvedStats }) {
   const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
 
-  // Calculate unlocked achievements and new ones
   useEffect(() => {
     if (!solvedStats) return;
 
@@ -48,15 +49,10 @@ export default function Navbar({ user, solvedStats }) {
 
     setUnreadCount(newOnes.length);
 
-    // Show toast for newly unlocked achievements
     newOnes.forEach((achievement) => {
       setTimeout(() => {
         toast(`${achievement.icon} Achievement Unlocked: ${achievement.label}!`, {
-          style: {
-            background: "#1f2937",
-            color: "#fff",
-            border: "1px solid #ca8a04",
-          },
+          style: { background: "#1f2937", color: "#fff", border: "1px solid #ca8a04" },
           duration: 4000,
         });
       }, 500);
@@ -66,13 +62,11 @@ export default function Navbar({ user, solvedStats }) {
   const markAllRead = () => {
     if (!user?._id) return;
     const seenKey = `seen_achievements_${user._id}`;
-    const seen = notifications.map((n) => n.id);
-    localStorage.setItem(seenKey, JSON.stringify(seen));
+    localStorage.setItem(seenKey, JSON.stringify(notifications.map((n) => n.id)));
     setUnreadCount(0);
     setNotifications(notifications.map((n) => ({ ...n, isNew: false })));
   };
 
-  // Close on outside click
   useEffect(() => {
     const handleClick = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) {
@@ -93,43 +87,58 @@ export default function Navbar({ user, solvedStats }) {
     }
   };
 
+  const isDark = theme === "dark";
+
   return (
-    <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4">
+    <nav className={`border-b px-6 py-4 ${isDark ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link href="/problems" className="flex items-center gap-2">
           <Code2 size={24} className="text-yellow-400" />
-          <span className="text-white font-bold text-xl">LeetCode Clone</span>
+          <span className={`font-bold text-xl ${isDark ? "text-white" : "text-gray-900"}`}>LeetCode Clone</span>
         </Link>
 
         {/* Nav Links */}
         <div className="flex items-center gap-6">
-          <Link href="/problems" className="text-gray-400 hover:text-white transition text-sm font-medium">
+          <Link href="/problems" className={`transition text-sm font-medium ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}>
             Problems
           </Link>
 
           {user?.role === "admin" && (
-            <Link href="/admin" className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 transition text-sm font-medium">
+            <Link href="/admin" className="flex items-center gap-1 text-yellow-500 hover:text-yellow-400 transition text-sm font-medium">
               <Shield size={16} />
               Admin
             </Link>
           )}
 
-          <Link href="/profile" className="flex items-center gap-2 text-gray-400 hover:text-white transition text-sm font-medium">
+          <Link href="/profile" className={`flex items-center gap-2 transition text-sm font-medium ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}>
             <User size={16} />
             {user?.username}
           </Link>
 
-          <Link href="/leaderboard" className="flex items-center gap-1 text-gray-400 hover:text-white transition text-sm font-medium">
+          <Link href="/leaderboard" className={`flex items-center gap-1 transition text-sm font-medium ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}>
             <Trophy size={16} />
             Leaderboard
           </Link>
+
+          {/* ✅ Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-lg border transition ${
+              isDark
+                ? "bg-gray-800 border-gray-700 text-yellow-400 hover:bg-gray-700"
+                : "bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
+            }`}
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
 
           {/* ✅ Notification Bell */}
           <div className="relative" ref={notifRef}>
             <button
               onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAllRead(); }}
-              className="relative text-gray-400 hover:text-white transition"
+              className={`relative transition ${isDark ? "text-gray-400 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
             >
               <Bell size={20} />
               {unreadCount > 0 && (
@@ -139,15 +148,14 @@ export default function Navbar({ user, solvedStats }) {
               )}
             </button>
 
-            {/* Notification Panel */}
             {showNotifications && (
-              <div className="absolute right-0 top-8 w-72 bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700">
+              <div className={`absolute right-0 top-8 w-72 border rounded-2xl shadow-2xl z-50 overflow-hidden ${isDark ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}`}>
+                <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? "border-gray-700" : "border-gray-200"}`}>
                   <div className="flex items-center gap-2">
                     <Award size={16} className="text-yellow-400" />
-                    <span className="text-white text-sm font-semibold">Achievements</span>
+                    <span className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>Achievements</span>
                   </div>
-                  <button onClick={() => setShowNotifications(false)} className="text-gray-500 hover:text-white transition">
+                  <button onClick={() => setShowNotifications(false)} className={`transition ${isDark ? "text-gray-500 hover:text-white" : "text-gray-400 hover:text-gray-900"}`}>
                     <X size={14} />
                   </button>
                 </div>
@@ -155,23 +163,23 @@ export default function Navbar({ user, solvedStats }) {
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <div className="text-center py-8">
-                      <Trophy size={28} className="text-gray-600 mx-auto mb-2" />
-                      <p className="text-gray-400 text-sm">No achievements yet</p>
-                      <p className="text-gray-600 text-xs mt-1">Solve problems to unlock!</p>
+                      <Trophy size={28} className="text-gray-400 mx-auto mb-2" />
+                      <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>No achievements yet</p>
+                      <p className={`text-xs mt-1 ${isDark ? "text-gray-600" : "text-gray-400"}`}>Solve problems to unlock!</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-gray-800">
+                    <div className={`divide-y ${isDark ? "divide-gray-800" : "divide-gray-100"}`}>
                       {notifications.map((notif) => (
                         <div key={notif.id} className={`flex items-center gap-3 px-4 py-3 ${notif.isNew ? "bg-yellow-500/5" : ""}`}>
                           <span className="text-xl">{notif.icon}</span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-white text-sm font-medium">{notif.label}</p>
+                              <p className={`text-sm font-medium ${isDark ? "text-white" : "text-gray-900"}`}>{notif.label}</p>
                               {notif.isNew && (
                                 <span className="bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">NEW</span>
                               )}
                             </div>
-                            <p className="text-gray-400 text-xs">{notif.desc}</p>
+                            <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>{notif.desc}</p>
                           </div>
                         </div>
                       ))}
@@ -179,12 +187,8 @@ export default function Navbar({ user, solvedStats }) {
                   )}
                 </div>
 
-                <div className="px-4 py-3 border-t border-gray-700">
-                  <Link
-                    href="/profile"
-                    onClick={() => setShowNotifications(false)}
-                    className="text-yellow-400 hover:text-yellow-300 text-xs transition"
-                  >
+                <div className={`px-4 py-3 border-t ${isDark ? "border-gray-700" : "border-gray-200"}`}>
+                  <Link href="/profile" onClick={() => setShowNotifications(false)} className="text-yellow-500 hover:text-yellow-400 text-xs transition">
                     View all achievements on profile →
                   </Link>
                 </div>
@@ -195,7 +199,7 @@ export default function Navbar({ user, solvedStats }) {
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-gray-400 hover:text-red-400 transition text-sm font-medium"
+            className={`flex items-center gap-2 transition text-sm font-medium ${isDark ? "text-gray-400 hover:text-red-400" : "text-gray-600 hover:text-red-500"}`}
           >
             <LogOut size={16} />
             Logout
