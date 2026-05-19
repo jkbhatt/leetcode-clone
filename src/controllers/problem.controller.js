@@ -8,27 +8,44 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 export const getAllProblems = asyncHandler(async (req, res) => {
   const { difficulty, tag, search } = req.query;
 
-  // Build filter object dynamically
+  // ✅ Pagination parameters
+  const page = parseInt(req.query.page) || 1;   // current page (default 1)
+  const limit = parseInt(req.query.limit) || 10; // items per page (default 10)
+  const skip = (page - 1) * limit;               // how many to skip
+
+  // Build filter
   const filter = {};
+  if (difficulty) filter.difficulty = difficulty;
+  if (tag) filter.tags = { $in: [tag] };
+  if (search) filter.title = { $regex: search, $options: "i" };
 
-  if (difficulty) {
-    filter.difficulty = difficulty; // Easy, Medium, Hard
-  }
+  // ✅ Get total count for pagination info
+  const totalProblems = await Problem.countDocuments(filter);
+  const totalPages = Math.ceil(totalProblems / limit);
 
-  if (tag) {
-    filter.tags = { $in: [tag] }; //  $in: [tag] MongoDB operator
-  }
-
-  if (search) {
-    filter.title = { $regex: search, $options: "i" }; // case insensitive search
-  }
-
+  // ✅ Get paginated problems
   const problems = await Problem.find(filter)
-    .select("-testCases -starterCode") // hide test cases and starter code
-    .sort({ createdAt: -1 });
+    .select("-testCases -starterCode")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
 
   return res.status(200).json(
-    new ApiResponse(200, { problems }, "Problems fetched successfully!")
+    new ApiResponse(
+      200,
+      {
+        problems,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalProblems,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1,
+          limit,
+        },
+      },
+      "Problems fetched successfully!"
+    )
   );
 });
 

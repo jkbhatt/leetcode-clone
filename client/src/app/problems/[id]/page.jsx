@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import api from "@/lib/api";
 import Navbar from "@/components/Navbar";
-import CodeEditor from "@/components/CodeEditor"; // MOST IMPORTANT frontend component.
+import CodeEditor from "@/components/CodeEditor";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Play, Send, ChevronLeft, CheckCircle, XCircle } from "lucide-react";
+import { Play, Send, ChevronLeft, CheckCircle, XCircle, Lightbulb, X, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 const difficultyColors = {
@@ -27,7 +27,6 @@ const statusColors = {
 export default function ProblemDetailPage() {
   const { id } = useParams();
 
-  // ✅ ALL hooks at top
   const { user, loading: authLoading } = useAuth();
   const [problem, setProblem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,8 +36,14 @@ export default function ProblemDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [runResults, setRunResults] = useState(null);
   const [submitResult, setSubmitResult] = useState(null);
-  const [activeTab, setActiveTab] = useState("description"); // description | results
+  const [activeTab, setActiveTab] = useState("description");
   const [isSolved, setIsSolved] = useState(false);
+
+  // ✅ Hint state
+  const [showHintPanel, setShowHintPanel] = useState(false);
+  const [hintLevel, setHintLevel] = useState(1);
+  const [hints, setHints] = useState(null);
+  const [hintLoading, setHintLoading] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -50,7 +55,6 @@ export default function ProblemDetailPage() {
       const res = await api.get(`/problems/${id}`);
       setProblem(res.data.problem);
       setIsSolved(res.data.isSolved);
-      // Load starter code
       const starter = res.data.problem.starterCode?.javascript || "";
       setCode(starter);
     } catch {
@@ -71,7 +75,7 @@ export default function ProblemDetailPage() {
         problemId: id,
       });
       setRunResults(res.data.results);
-      setActiveTab("results"); // Automatically opens results panel.
+      setActiveTab("results");
       toast.success("Code executed!");
     } catch (err) {
       toast.error(err.message);
@@ -103,6 +107,31 @@ export default function ProblemDetailPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ✅ Fetch hint from backend
+  const handleGetHint = async () => {
+    setHintLoading(true);
+    setHints(null);
+    try {
+      const res = await api.post("/hints", {
+        problemId: id,
+        userCode: code,
+        language,
+        hintLevel,
+      });
+      setHints(res.data.data.hints);
+      toast.success(`Level ${hintLevel} hint generated!`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to get hint");
+    } finally {
+      setHintLoading(false);
+    }
+  };
+
+  const openHintPanel = () => {
+    setShowHintPanel(true);
+    setHints(null);
   };
 
   if (authLoading || loading) {
@@ -186,12 +215,10 @@ export default function ProblemDetailPage() {
           <div className="p-6 flex-1">
             {activeTab === "description" ? (
               <div className="space-y-6">
-                {/* Description */}
                 <div>
                   <p className="text-gray-300 leading-relaxed">{problem.description}</p>
                 </div>
 
-                {/* Examples */}
                 {problem.examples?.map((example, i) => (
                   <div key={i}>
                     <h3 className="text-white font-semibold mb-2">Example {i + 1}:</h3>
@@ -214,7 +241,6 @@ export default function ProblemDetailPage() {
                   </div>
                 ))}
 
-                {/* Constraints */}
                 {problem.constraints && (
                   <div>
                     <h3 className="text-white font-semibold mb-2">Constraints:</h3>
@@ -228,7 +254,6 @@ export default function ProblemDetailPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Submit Result */}
                 {submitResult && (
                   <div className={`bg-gray-800 rounded-xl p-4 border ${
                     submitResult.submission.status === "Accepted"
@@ -256,7 +281,6 @@ export default function ProblemDetailPage() {
                   </div>
                 )}
 
-                {/* Run Results */}
                 {runResults && (
                   <div className="space-y-3">
                     <h3 className="text-white font-semibold">Test Results:</h3>
@@ -310,8 +334,124 @@ export default function ProblemDetailPage() {
           </div>
         </div>
 
-        {/* RIGHT SIDE — Code Editor */}
-        <div className="w-1/2 flex flex-col">
+        {/* RIGHT SIDE — Code Editor + Hint Panel */}
+        <div className="w-1/2 flex flex-col relative">
+
+          {/* ✅ Hint Panel Overlay */}
+          {showHintPanel && (
+            <div className="absolute inset-0 z-10 bg-gray-900 flex flex-col border-l border-gray-700">
+              {/* Hint Panel Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-900">
+                <div className="flex items-center gap-2">
+                  <Lightbulb size={18} className="text-yellow-400" />
+                  <span className="text-white font-semibold">AI Hint</span>
+                </div>
+                <button
+                  onClick={() => setShowHintPanel(false)}
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Hint Level Selector */}
+              <div className="px-6 py-4 border-b border-gray-700">
+                <p className="text-gray-400 text-sm mb-3">Select hint level:</p>
+                <div className="flex gap-2">
+                  {[
+                    { level: 1, label: "Gentle", color: "border-green-500 text-green-400" },
+                    { level: 2, label: "Medium", color: "border-yellow-500 text-yellow-400" },
+                    { level: 3, label: "Strong", color: "border-red-500 text-red-400" },
+                  ].map(({ level, label, color }) => (
+                    <button
+                      key={level}
+                      onClick={() => { setHintLevel(level); setHints(null); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition ${
+                        hintLevel === level
+                          ? `${color} bg-gray-800`
+                          : "border-gray-600 text-gray-400 hover:border-gray-400"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleGetHint}
+                  disabled={hintLoading}
+                  className="w-full mt-3 flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2.5 rounded-lg transition disabled:opacity-50"
+                >
+                  <Lightbulb size={16} />
+                  {hintLoading ? "Generating hint..." : "Get Hint"}
+                </button>
+              </div>
+
+              {/* Hint Content */}
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {hintLoading && (
+                  <div className="flex items-center justify-center mt-10">
+                    <div className="text-center">
+                      <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-gray-400 text-sm">AI is thinking...</p>
+                    </div>
+                  </div>
+                )}
+
+                {hints && !hintLoading && (
+                  <div className="space-y-4">
+                    {/* Logic Hint */}
+                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-blue-400 text-xs font-semibold uppercase tracking-wide">Logic</span>
+                      </div>
+                      <p className="text-gray-300 text-sm leading-relaxed">{hints.logicHint}</p>
+                    </div>
+
+                    {/* Complexity Hint */}
+                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-purple-400 text-xs font-semibold uppercase tracking-wide">Complexity</span>
+                      </div>
+                      <p className="text-gray-300 text-sm leading-relaxed">{hints.complexityHint}</p>
+                    </div>
+
+                    {/* Edge Case Hint */}
+                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-orange-400 text-xs font-semibold uppercase tracking-wide">Edge Cases</span>
+                      </div>
+                      <p className="text-gray-300 text-sm leading-relaxed">{hints.edgeCaseHint}</p>
+                    </div>
+
+                    {/* Encouragement */}
+                    <div className="bg-yellow-500/10 rounded-xl p-4 border border-yellow-500/30">
+                      <p className="text-yellow-300 text-sm leading-relaxed">💪 {hints.encouragement}</p>
+                    </div>
+
+                    {/* Level up button */}
+                    {hintLevel < 3 && (
+                      <button
+                        onClick={() => { setHintLevel(h => h + 1); setHints(null); }}
+                        className="w-full flex items-center justify-center gap-1 text-gray-400 hover:text-white text-sm py-2 transition"
+                      >
+                        Need a stronger hint? <ChevronRight size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {!hints && !hintLoading && (
+                  <div className="text-center mt-10">
+                    <Lightbulb size={40} className="text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-400 text-sm">Select a hint level and click Get Hint</p>
+                    <p className="text-gray-600 text-xs mt-1">Your current code will be analyzed</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Editor */}
           <div className="flex-1 overflow-hidden">
             <CodeEditor
@@ -323,15 +463,24 @@ export default function ProblemDetailPage() {
             />
           </div>
 
-          {/* Bottom bar - Run and Submit buttons */}
+          {/* Bottom bar */}
           <div className="bg-gray-900 border-t border-gray-800 px-6 py-4 flex items-center justify-between">
-            <div className="text-gray-400 text-sm">
+            <div className="flex items-center gap-3">
               {isSolved && (
-                <span className="flex items-center gap-1 text-green-400">
+                <span className="flex items-center gap-1 text-green-400 text-sm">
                   <CheckCircle size={14} />
                   Solved
                 </span>
               )}
+
+              {/* ✅ Hint Button */}
+              <button
+                onClick={openHintPanel}
+                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-400 text-yellow-400 px-4 py-2 rounded-lg text-sm font-medium transition"
+              >
+                <Lightbulb size={15} />
+                Hint
+              </button>
             </div>
 
             <div className="flex gap-3">

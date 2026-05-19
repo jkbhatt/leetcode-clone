@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 import ProblemCard from "@/components/ProblemCard";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 
 export default function ProblemsPage() {
 
@@ -19,45 +19,58 @@ export default function ProblemsPage() {
   const [difficulty, setDifficulty] = useState("All");
   const [solvedProblems, setSolvedProblems] = useState([]);
 
+  // Pagination state
+  const [pagination, setPagination] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
+
     if (authLoading) return;
 
-    fetchProblems();
+    fetchProblems(currentPage);
+
     fetchSolvedProblems();
 
-  }, [authLoading, difficulty]);
+  }, [authLoading, difficulty, currentPage]);
 
-  const fetchProblems = async () => {
+  // Fetch problems
+  const fetchProblems = async (page = 1) => {
+
     try {
 
-      let url = "/problems";
+      setLoading(true);
 
-      const params = [];
+      let url = `/problems?page=${page}&limit=10`;
 
       if (difficulty !== "All") {
-        params.push(`difficulty=${difficulty}`);
+        url += `&difficulty=${difficulty}`;
       }
 
       if (search) {
-        params.push(`search=${search}`);
-      }
-
-      if (params.length > 0) {
-        url += `?${params.join("&")}`;
+        url += `&search=${search}`;
       }
 
       const res = await api.get(url);
 
       setProblems(res.data.problems);
 
+      // Save pagination info
+      setPagination(res.data.pagination);
+
     } catch {
+
       toast.error("Failed to fetch problems");
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
+  // Fetch solved problems
   const fetchSolvedProblems = async () => {
+
     try {
 
       const res = await api.get("/problems/solved");
@@ -68,25 +81,37 @@ export default function ProblemsPage() {
 
     } catch {
 
+      console.log("Failed to fetch solved problems");
+
     }
   };
 
+  // Handle search
   const handleSearch = (e) => {
+
     e.preventDefault();
-    fetchProblems();
+
+    setCurrentPage(1);
+
+    fetchProblems(1);
   };
 
   if (authLoading) {
+
     return (
+
       <div className="flex min-h-screen bg-gray-950 items-center justify-center">
+
         <p className="text-gray-400 text-lg">
           Loading...
         </p>
+
       </div>
     );
   }
 
   return (
+
     <div className="min-h-screen bg-gray-950">
 
       <Toaster position="top-right" />
@@ -103,7 +128,7 @@ export default function ProblemsPage() {
           </h2>
 
           <p className="text-gray-400 text-sm">
-            {problems.length} problems available
+            {pagination?.totalProblems || problems.length} problems available
           </p>
 
         </div>
@@ -142,11 +167,18 @@ export default function ProblemsPage() {
 
           </form>
 
+          {/* Difficulty Filter */}
           <select
             value={difficulty}
-            onChange={(e) => setDifficulty(e.target.value)}
+            onChange={(e) => {
+
+              setDifficulty(e.target.value);
+
+              setCurrentPage(1);
+            }}
             className="bg-gray-900 text-white rounded-lg px-4 py-2.5 outline-none text-sm"
           >
+
             <option value="All">
               All Difficulties
             </option>
@@ -164,6 +196,7 @@ export default function ProblemsPage() {
             </option>
 
           </select>
+
         </div>
 
         {/* Stats */}
@@ -183,6 +216,7 @@ export default function ProblemsPage() {
             };
 
             return (
+
               <div
                 key={diff}
                 className="bg-gray-900 rounded-xl px-4 py-3 flex items-center gap-2"
@@ -212,52 +246,108 @@ export default function ProblemsPage() {
         ) : problems.length === 0 ? (
 
           <div className="text-center mt-20">
+
             <p className="text-gray-400 text-lg">
               No problems found!
             </p>
+
           </div>
 
         ) : (
 
-          <div className="space-y-3">
+          <>
+            <div className="space-y-3">
 
-            {problems.map((problem, index) => (
+              {problems.map((problem, index) => (
 
-              <div
-                key={problem._id}
-                className="flex items-center gap-3"
-              >
+                <div
+                  key={problem._id}
+                  className="flex items-center gap-3"
+                >
 
-                <div className="flex-1">
+                  <div className="flex-1">
 
-                  <ProblemCard
-                    problem={problem}
-                    index={index}
-                    isSolved={solvedProblems.includes(problem._id)}
-                  />
+                    <ProblemCard
+                      problem={problem}
+                      index={index}
+                      isSolved={solvedProblems.includes(problem._id)}
+                    />
+
+                  </div>
+
+                  {user?.role === "admin" && (
+
+                    <Link
+                      href={`/admin/edit/${problem._id}`}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
+                    >
+                      Edit
+                    </Link>
+
+                  )}
 
                 </div>
 
-                {user?.role === "admin" && (
+              ))}
 
-                  <Link
-                    href={`/admin/edit/${problem._id}`}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm"
-                  >
-                    Edit
-                  </Link>
+            </div>
 
-                )}
+            {/* Pagination */}
+            {pagination && (
+
+              <div className="flex items-center justify-center gap-4 mt-8 flex-wrap">
+
+                {/* Previous */}
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={!pagination.hasPrevPage}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm disabled:opacity-40 hover:bg-gray-700 transition"
+                >
+                  ← Previous
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex gap-2 flex-wrap justify-center">
+
+                  {Array.from(
+                    { length: pagination.totalPages },
+                    (_, i) => i + 1
+                  ).map((page) => (
+
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-9 h-9 rounded-lg text-sm font-medium transition ${
+                        page === pagination.currentPage
+                          ? "bg-yellow-500 text-black"
+                          : "bg-gray-800 text-white hover:bg-gray-700"
+                      }`}
+                    >
+                      {page}
+                    </button>
+
+                  ))}
+
+                </div>
+
+                {/* Next */}
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={!pagination.hasNextPage}
+                  className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm disabled:opacity-40 hover:bg-gray-700 transition"
+                >
+                  Next →
+                </button>
 
               </div>
 
-            ))}
+            )}
 
-          </div>
-
+          </>
         )}
 
       </main>
+
     </div>
   );
 }
