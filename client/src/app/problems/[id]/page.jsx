@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import CodeEditor from "@/components/CodeEditor";
 import toast, { Toaster } from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Play, Send, ChevronLeft, CheckCircle, XCircle, Lightbulb, X, ChevronRight, Timer, Pause, RotateCcw } from "lucide-react";
+import { Play, Send, ChevronLeft, CheckCircle, XCircle, Lightbulb, X, ChevronRight, Timer, Pause, RotateCcw, Code2 } from "lucide-react";
 import Link from "next/link";
 import Discussion from "@/components/Discussion";
 
@@ -27,7 +27,6 @@ const statusColors = {
 
 export default function ProblemDetailPage() {
   const { id } = useParams();
-
   const { user, loading: authLoading } = useAuth();
   const [problem, setProblem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,42 +38,34 @@ export default function ProblemDetailPage() {
   const [submitResult, setSubmitResult] = useState(null);
   const [activeTab, setActiveTab] = useState("description");
   const [isSolved, setIsSolved] = useState(false);
+  const [mobileView, setMobileView] = useState("problem"); // problem | code
 
-  // ✅ Hint state
+  // Hint state
   const [showHintPanel, setShowHintPanel] = useState(false);
   const [hintLevel, setHintLevel] = useState(1);
   const [hints, setHints] = useState(null);
   const [hintLoading, setHintLoading] = useState(false);
 
-  // ✅ Timer state
+  // Timer state
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
   const timerRef = useRef(null);
 
-  // Timer logic
   useEffect(() => {
     if (timerRunning) {
-      timerRef.current = setInterval(() => {
-        setTimerSeconds((s) => s + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setTimerSeconds((s) => s + 1), 1000);
     } else {
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
   }, [timerRunning]);
 
-  // Auto start timer when problem loads
   useEffect(() => {
-    if (problem && !isSolved) {
-      setTimerRunning(true);
-    }
+    if (problem && !isSolved) setTimerRunning(true);
   }, [problem]);
 
-  // Stop timer when solved
   useEffect(() => {
-    if (isSolved) {
-      setTimerRunning(false);
-    }
+    if (isSolved) setTimerRunning(false);
   }, [isSolved]);
 
   const formatTime = (seconds) => {
@@ -83,11 +74,6 @@ export default function ProblemDetailPage() {
     const s = seconds % 60;
     if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  };
-
-  const resetTimer = () => {
-    setTimerSeconds(0);
-    setTimerRunning(false);
   };
 
   useEffect(() => {
@@ -100,8 +86,7 @@ export default function ProblemDetailPage() {
       const res = await api.get(`/problems/${id}`);
       setProblem(res.data.problem);
       setIsSolved(res.data.isSolved);
-      const starter = res.data.problem.starterCode?.javascript || "";
-      setCode(starter);
+      setCode(res.data.problem.starterCode?.javascript || "");
     } catch {
       toast.error("Failed to fetch problem");
     } finally {
@@ -114,13 +99,10 @@ export default function ProblemDetailPage() {
     setRunning(true);
     setRunResults(null);
     try {
-      const res = await api.post("/submissions/run", {
-        code,
-        language,
-        problemId: id,
-      });
+      const res = await api.post("/submissions/run", { code, language, problemId: id });
       setRunResults(res.data.results);
       setActiveTab("results");
+      setMobileView("problem");
       toast.success("Code executed!");
     } catch (err) {
       toast.error(err.message);
@@ -134,13 +116,10 @@ export default function ProblemDetailPage() {
     setSubmitting(true);
     setSubmitResult(null);
     try {
-      const res = await api.post("/submissions/submit", {
-        code,
-        language,
-        problemId: id,
-      });
+      const res = await api.post("/submissions/submit", { code, language, problemId: id });
       setSubmitResult(res.data);
       setActiveTab("results");
+      setMobileView("problem");
       if (res.data.submission.status === "Accepted") {
         setIsSolved(true);
         toast.success(`🎉 Accepted! Solved in ${formatTime(timerSeconds)}!`);
@@ -154,17 +133,11 @@ export default function ProblemDetailPage() {
     }
   };
 
-  // ✅ Fetch hint from backend
   const handleGetHint = async (levelToUse = hintLevel) => {
     setHintLoading(true);
     setHints(null);
     try {
-      const res = await api.post("/hints", {
-        problemId: id,
-        userCode: code,
-        language,
-        hintLevel: levelToUse,
-      });
+      const res = await api.post("/hints", { problemId: id, userCode: code, language, hintLevel: levelToUse });
       setHints(res.data.hints);
       toast.success(`Level ${levelToUse} hint generated!`);
     } catch (err) {
@@ -174,15 +147,10 @@ export default function ProblemDetailPage() {
     }
   };
 
-  const openHintPanel = () => {
-    setShowHintPanel(true);
-    setHints(null);
-  };
-
   if (authLoading || loading) {
     return (
       <div className="flex min-h-screen bg-gray-950 items-center justify-center">
-        <p className="text-gray-400 text-lg">Loading...</p>
+        <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -200,190 +168,136 @@ export default function ProblemDetailPage() {
       <Toaster position="top-right" />
       <Navbar user={user} />
 
-      {/* Main content - split screen */}
-      <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 65px)" }}>
+      {/* ── MOBILE VIEW TOGGLE ── */}
+      <div className="flex md:hidden border-b border-gray-800 bg-gray-900">
+        <button
+          onClick={() => setMobileView("problem")}
+          className={`flex-1 py-2.5 text-sm font-medium transition ${
+            mobileView === "problem" ? "text-yellow-400 border-b-2 border-yellow-400" : "text-gray-400"
+          }`}
+        >
+          Problem
+        </button>
+        <button
+          onClick={() => setMobileView("code")}
+          className={`flex-1 py-2.5 text-sm font-medium transition flex items-center justify-center gap-1 ${
+            mobileView === "code" ? "text-yellow-400 border-b-2 border-yellow-400" : "text-gray-400"
+          }`}
+        >
+          <Code2 size={14} /> Code
+        </button>
+      </div>
 
-        {/* LEFT SIDE — Problem description */}
-        <div className="w-1/2 flex flex-col border-r border-gray-800 overflow-y-auto">
+      {/* ── DESKTOP: Split screen | MOBILE: Tab-based ── */}
+      <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 65px - 41px)" }}>
+
+        {/* LEFT / PROBLEM SIDE */}
+        <div className={`
+          w-full md:w-1/2 flex flex-col border-r border-gray-800 overflow-y-auto
+          ${mobileView === "problem" ? "flex" : "hidden"} md:flex
+        `}>
           {/* Problem header */}
-          <div className="p-6 border-b border-gray-800">
-            <Link
-              href="/problems"
-              className="flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-4 transition"
-            >
-              <ChevronLeft size={16} />
-              Back to Problems
+          <div className="p-4 sm:p-6 border-b border-gray-800">
+            <Link href="/problems" className="flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-3 sm:mb-4 transition">
+              <ChevronLeft size={16} /> Back to Problems
             </Link>
-
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-xl font-bold text-white">{problem.title}</h1>
-              {isSolved && <CheckCircle size={20} className="text-green-400" />}
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+              <h1 className="text-lg sm:text-xl font-bold text-white">{problem.title}</h1>
+              {isSolved && <CheckCircle size={18} className="text-green-400" />}
             </div>
-
-            <div className="flex items-center gap-3">
-              <span className={`text-xs px-3 py-1 rounded-full font-medium ${difficultyColors[problem.difficulty]}`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${difficultyColors[problem.difficulty]}`}>
                 {problem.difficulty}
               </span>
               {problem.tags?.map((tag) => (
-                <span key={tag} className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-                  {tag}
-                </span>
+                <span key={tag} className="text-xs text-gray-400 bg-gray-800 px-2 py-0.5 rounded">{tag}</span>
               ))}
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-800">
-            <button
-              onClick={() => setActiveTab("description")}
-              className={`px-6 py-3 text-sm font-medium transition ${
-                activeTab === "description"
-                  ? "text-white border-b-2 border-yellow-400"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Description
-            </button>
-            <button
-              onClick={() => setActiveTab("results")}
-              className={`px-6 py-3 text-sm font-medium transition ${
-                activeTab === "results"
-                  ? "text-white border-b-2 border-yellow-400"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Results
-            </button>
-            <button
-              onClick={() => setActiveTab("discussion")}
-              className={`px-6 py-3 text-sm font-medium transition ${
-                activeTab === "discussion"
-                  ? "text-white border-b-2 border-yellow-400"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Discussion
-            </button>
+          <div className="flex border-b border-gray-800 overflow-x-auto">
+            {["description", "results", "discussion"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 sm:px-6 py-3 text-sm font-medium transition whitespace-nowrap capitalize ${
+                  activeTab === tab ? "text-white border-b-2 border-yellow-400" : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
 
           {/* Tab content */}
-          <div className="p-6 flex-1">
+          <div className="p-4 sm:p-6 flex-1">
             {activeTab === "description" && (
-              <div className="space-y-6">
-                <div>
-                  <p className="text-gray-300 leading-relaxed">{problem.description}</p>
-                </div>
-
+              <div className="space-y-4 sm:space-y-6">
+                <p className="text-gray-300 leading-relaxed text-sm sm:text-base">{problem.description}</p>
                 {problem.examples?.map((example, i) => (
                   <div key={i}>
-                    <h3 className="text-white font-semibold mb-2">Example {i + 1}:</h3>
-                    <div className="bg-gray-800 rounded-lg p-4 space-y-2">
-                      <div>
-                        <span className="text-gray-400 text-sm">Input: </span>
-                        <code className="text-green-400 text-sm">{example.input}</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-400 text-sm">Output: </span>
-                        <code className="text-yellow-400 text-sm">{example.output}</code>
-                      </div>
-                      {example.explanation && (
-                        <div>
-                          <span className="text-gray-400 text-sm">Explanation: </span>
-                          <span className="text-gray-300 text-sm">{example.explanation}</span>
-                        </div>
-                      )}
+                    <h3 className="text-white font-semibold mb-2 text-sm sm:text-base">Example {i + 1}:</h3>
+                    <div className="bg-gray-800 rounded-lg p-3 sm:p-4 space-y-2">
+                      <div><span className="text-gray-400 text-sm">Input: </span><code className="text-green-400 text-sm">{example.input}</code></div>
+                      <div><span className="text-gray-400 text-sm">Output: </span><code className="text-yellow-400 text-sm">{example.output}</code></div>
+                      {example.explanation && <div><span className="text-gray-400 text-sm">Explanation: </span><span className="text-gray-300 text-sm">{example.explanation}</span></div>}
                     </div>
                   </div>
                 ))}
-
                 {problem.constraints && (
                   <div>
-                    <h3 className="text-white font-semibold mb-2">Constraints:</h3>
-                    <div className="bg-gray-800 rounded-lg p-4">
-                      <pre className="text-gray-300 text-sm whitespace-pre-wrap">
-                        {problem.constraints}
-                      </pre>
+                    <h3 className="text-white font-semibold mb-2 text-sm sm:text-base">Constraints:</h3>
+                    <div className="bg-gray-800 rounded-lg p-3 sm:p-4">
+                      <pre className="text-gray-300 text-sm whitespace-pre-wrap">{problem.constraints}</pre>
                     </div>
                   </div>
                 )}
+
+                {/* Mobile: Code button */}
+                <button
+                  onClick={() => setMobileView("code")}
+                  className="md:hidden w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2"
+                >
+                  <Code2 size={16} /> Start Coding
+                </button>
               </div>
             )}
 
             {activeTab === "results" && (
               <div className="space-y-4">
                 {submitResult && (
-                  <div className={`bg-gray-800 rounded-xl p-4 border ${
-                    submitResult.submission.status === "Accepted"
-                      ? "border-green-500"
-                      : "border-red-500"
-                  }`}>
+                  <div className={`bg-gray-800 rounded-xl p-4 border ${submitResult.submission.status === "Accepted" ? "border-green-500" : "border-red-500"}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      {submitResult.submission.status === "Accepted" ? (
-                        <CheckCircle size={20} className="text-green-400" />
-                      ) : (
-                        <XCircle size={20} className="text-red-400" />
-                      )}
-                      <span className={`font-bold text-lg ${statusColors[submitResult.submission.status]}`}>
-                        {submitResult.submission.status}
-                      </span>
+                      {submitResult.submission.status === "Accepted" ? <CheckCircle size={20} className="text-green-400" /> : <XCircle size={20} className="text-red-400" />}
+                      <span className={`font-bold text-lg ${statusColors[submitResult.submission.status]}`}>{submitResult.submission.status}</span>
                     </div>
-                    <p className="text-gray-400 text-sm">
-                      {submitResult.testCasesPassed} / {submitResult.totalTestCases} test cases passed
-                    </p>
-                    {submitResult.submission.runtime > 0 && (
-                      <p className="text-gray-400 text-sm">
-                        Runtime: {submitResult.submission.runtime}ms
-                      </p>
-                    )}
+                    <p className="text-gray-400 text-sm">{submitResult.testCasesPassed} / {submitResult.totalTestCases} test cases passed</p>
+                    {submitResult.submission.runtime > 0 && <p className="text-gray-400 text-sm">Runtime: {submitResult.submission.runtime}ms</p>}
                   </div>
                 )}
-
                 {runResults && (
                   <div className="space-y-3">
-                    <h3 className="text-white font-semibold">Test Results:</h3>
+                    <h3 className="text-white font-semibold text-sm sm:text-base">Test Results:</h3>
                     {runResults.map((result, i) => (
-                      <div
-                        key={i}
-                        className={`bg-gray-800 rounded-xl p-4 border ${
-                          result.passed ? "border-green-700" : "border-red-700"
-                        }`}
-                      >
+                      <div key={i} className={`bg-gray-800 rounded-xl p-3 sm:p-4 border ${result.passed ? "border-green-700" : "border-red-700"}`}>
                         <div className="flex items-center gap-2 mb-2">
-                          {result.passed ? (
-                            <CheckCircle size={16} className="text-green-400" />
-                          ) : (
-                            <XCircle size={16} className="text-red-400" />
-                          )}
-                          <span className={result.passed ? "text-green-400" : "text-red-400"}>
-                            {result.passed ? "Passed" : "Failed"}
-                          </span>
+                          {result.passed ? <CheckCircle size={16} className="text-green-400" /> : <XCircle size={16} className="text-red-400" />}
+                          <span className={result.passed ? "text-green-400 text-sm" : "text-red-400 text-sm"}>{result.passed ? "Passed" : "Failed"}</span>
                         </div>
                         <div className="space-y-1 text-sm">
-                          <p className="text-gray-400">
-                            Input: <code className="text-gray-300">{result.input}</code>
-                          </p>
-                          <p className="text-gray-400">
-                            Expected: <code className="text-green-400">{result.expectedOutput}</code>
-                          </p>
-                          <p className="text-gray-400">
-                            Got: <code className={result.passed ? "text-green-400" : "text-red-400"}>
-                              {result.actualOutput || "No output"}
-                            </code>
-                          </p>
-                          {result.error && (
-                            <p className="text-red-400 text-xs mt-2">{result.error}</p>
-                          )}
+                          <p className="text-gray-400">Input: <code className="text-gray-300">{result.input}</code></p>
+                          <p className="text-gray-400">Expected: <code className="text-green-400">{result.expectedOutput}</code></p>
+                          <p className="text-gray-400">Got: <code className={result.passed ? "text-green-400" : "text-red-400"}>{result.actualOutput || "No output"}</code></p>
+                          {result.error && <p className="text-red-400 text-xs mt-2">{result.error}</p>}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-
                 {!submitResult && !runResults && (
                   <div className="text-center mt-10">
-                    <p className="text-gray-400">
-                      Run or submit your code to see results here!
-                    </p>
+                    <p className="text-gray-400 text-sm">Run or submit your code to see results here!</p>
                   </div>
                 )}
               </div>
@@ -395,52 +309,38 @@ export default function ProblemDetailPage() {
           </div>
         </div>
 
-        {/* RIGHT SIDE — Code Editor + Hint Panel */}
-        <div className="w-1/2 flex flex-col relative">
-
-          {/* ✅ Hint Panel Overlay */}
+        {/* RIGHT / CODE SIDE */}
+        <div className={`
+          w-full md:w-1/2 flex flex-col relative
+          ${mobileView === "code" ? "flex" : "hidden"} md:flex
+        `}>
+          {/* Hint Panel */}
           {showHintPanel && (
             <div className="absolute inset-0 z-10 bg-gray-900 flex flex-col border-l border-gray-700">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-900">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-700">
                 <div className="flex items-center gap-2">
                   <Lightbulb size={18} className="text-yellow-400" />
                   <span className="text-white font-semibold">AI Hint</span>
                 </div>
-                <button onClick={() => setShowHintPanel(false)} className="text-gray-400 hover:text-white transition">
-                  <X size={20} />
-                </button>
+                <button onClick={() => setShowHintPanel(false)} className="text-gray-400 hover:text-white transition"><X size={20} /></button>
               </div>
-
-              <div className="px-6 py-4 border-b border-gray-700">
+              <div className="px-4 sm:px-6 py-4 border-b border-gray-700">
                 <p className="text-gray-400 text-sm mb-3">Select hint level:</p>
                 <div className="flex gap-2">
-                  {[
-                    { level: 1, label: "Gentle", color: "border-green-500 text-green-400" },
-                    { level: 2, label: "Medium", color: "border-yellow-500 text-yellow-400" },
-                    { level: 3, label: "Strong", color: "border-red-500 text-red-400" },
-                  ].map(({ level, label, color }) => (
-                    <button
-                      key={level}
-                      onClick={() => { setHintLevel(level); setHints(null); }}
-                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition ${
-                        hintLevel === level ? `${color} bg-gray-800` : "border-gray-600 text-gray-400 hover:border-gray-400"
-                      }`}
-                    >
+                  {[{ level: 1, label: "Gentle", color: "border-green-500 text-green-400" }, { level: 2, label: "Medium", color: "border-yellow-500 text-yellow-400" }, { level: 3, label: "Strong", color: "border-red-500 text-red-400" }].map(({ level, label, color }) => (
+                    <button key={level} onClick={() => { setHintLevel(level); setHints(null); }}
+                      className={`flex-1 py-2 rounded-lg border text-sm font-medium transition ${hintLevel === level ? `${color} bg-gray-800` : "border-gray-600 text-gray-400 hover:border-gray-400"}`}>
                       {label}
                     </button>
                   ))}
                 </div>
-                <button
-                  onClick={handleGetHint}
-                  disabled={hintLoading}
-                  className="w-full mt-3 flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2.5 rounded-lg transition disabled:opacity-50"
-                >
+                <button onClick={handleGetHint} disabled={hintLoading}
+                  className="w-full mt-3 flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2.5 rounded-lg transition disabled:opacity-50">
                   <Lightbulb size={16} />
-                  {hintLoading ? "Generating hint..." : "Get Hint"}
+                  {hintLoading ? "Generating..." : "Get Hint"}
                 </button>
               </div>
-
-              <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
                 {hintLoading && (
                   <div className="flex items-center justify-center mt-10">
                     <div className="text-center">
@@ -449,40 +349,29 @@ export default function ProblemDetailPage() {
                     </div>
                   </div>
                 )}
-
                 {hints && !hintLoading && (
                   <div className="space-y-4">
-                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                      <span className="text-blue-400 text-xs font-semibold uppercase tracking-wide">Logic</span>
-                      <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints.logicHint}</p>
-                    </div>
-                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                      <span className="text-purple-400 text-xs font-semibold uppercase tracking-wide">Complexity</span>
-                      <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints.complexityHint}</p>
-                    </div>
-                    <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-                      <span className="text-orange-400 text-xs font-semibold uppercase tracking-wide">Edge Cases</span>
-                      <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints.edgeCaseHint}</p>
-                    </div>
+                    {[{ key: "logicHint", label: "Logic", color: "text-blue-400" }, { key: "complexityHint", label: "Complexity", color: "text-purple-400" }, { key: "edgeCaseHint", label: "Edge Cases", color: "text-orange-400" }].map(({ key, label, color }) => (
+                      <div key={key} className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                        <span className={`${color} text-xs font-semibold uppercase tracking-wide`}>{label}</span>
+                        <p className="text-gray-300 text-sm leading-relaxed mt-2">{hints[key]}</p>
+                      </div>
+                    ))}
                     <div className="bg-yellow-500/10 rounded-xl p-4 border border-yellow-500/30">
                       <p className="text-yellow-300 text-sm leading-relaxed">💪 {hints.encouragement}</p>
                     </div>
                     {hintLevel < 3 && (
-                      <button
-                        onClick={() => { setHintLevel(h => h + 1); setHints(null); }}
-                        className="w-full flex items-center justify-center gap-1 text-gray-400 hover:text-white text-sm py-2 transition"
-                      >
+                      <button onClick={() => { setHintLevel(h => h + 1); setHints(null); }}
+                        className="w-full flex items-center justify-center gap-1 text-gray-400 hover:text-white text-sm py-2 transition">
                         Need a stronger hint? <ChevronRight size={14} />
                       </button>
                     )}
                   </div>
                 )}
-
                 {!hints && !hintLoading && (
                   <div className="text-center mt-10">
                     <Lightbulb size={40} className="text-gray-600 mx-auto mb-3" />
                     <p className="text-gray-400 text-sm">Select a hint level and click Get Hint</p>
-                    <p className="text-gray-600 text-xs mt-1">Your current code will be analyzed</p>
                   </div>
                 )}
               </div>
@@ -491,74 +380,46 @@ export default function ProblemDetailPage() {
 
           {/* Editor */}
           <div className="flex-1 overflow-hidden">
-            <CodeEditor
-              code={code}
-              language={language}
-              onChange={setCode}
-              onLanguageChange={setLanguage}
-              starterCode={problem.starterCode}
-            />
+            <CodeEditor code={code} language={language} onChange={setCode} onLanguageChange={setLanguage} starterCode={problem.starterCode} />
           </div>
 
           {/* Bottom bar */}
-          <div className="bg-gray-900 border-t border-gray-800 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {isSolved && (
-                <span className="flex items-center gap-1 text-green-400 text-sm">
-                  <CheckCircle size={14} />
-                  Solved
-                </span>
-              )}
+          <div className="bg-gray-900 border-t border-gray-800 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              {isSolved && <span className="hidden sm:flex items-center gap-1 text-green-400 text-sm"><CheckCircle size={14} /> Solved</span>}
 
-              {/* ✅ Hint Button */}
-              <button
-                onClick={openHintPanel}
-                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-400 text-yellow-400 px-4 py-2 rounded-lg text-sm font-medium transition"
-              >
-                <Lightbulb size={15} />
-                Hint
+              {/* Hint Button */}
+              <button onClick={() => setShowHintPanel(true)}
+                className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-yellow-400 text-yellow-400 px-2.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition">
+                <Lightbulb size={14} />
+                <span className="hidden sm:block">Hint</span>
               </button>
 
-              {/* ✅ Timer */}
-              <div className="flex items-center gap-1.5 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2">
-                <Timer size={14} className={timerRunning ? "text-yellow-400" : "text-gray-500"} />
-                <span className={`text-sm font-mono font-semibold ${isSolved ? "text-green-400" : timerRunning ? "text-white" : "text-gray-400"}`}>
+              {/* Timer */}
+              <div className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-lg px-2 sm:px-3 py-2">
+                <Timer size={13} className={timerRunning ? "text-yellow-400" : "text-gray-500"} />
+                <span className={`text-xs sm:text-sm font-mono font-semibold ${isSolved ? "text-green-400" : timerRunning ? "text-white" : "text-gray-400"}`}>
                   {formatTime(timerSeconds)}
                 </span>
-                <button
-                  onClick={() => setTimerRunning(!timerRunning)}
-                  className="text-gray-500 hover:text-white transition ml-1"
-                  title={timerRunning ? "Pause" : "Start"}
-                >
-                  {timerRunning ? <Pause size={12} /> : <Play size={12} />}
+                <button onClick={() => setTimerRunning(!timerRunning)} className="text-gray-500 hover:text-white transition ml-0.5">
+                  {timerRunning ? <Pause size={11} /> : <Play size={11} />}
                 </button>
-                <button
-                  onClick={resetTimer}
-                  className="text-gray-500 hover:text-white transition"
-                  title="Reset"
-                >
-                  <RotateCcw size={12} />
+                <button onClick={() => { setTimerSeconds(0); setTimerRunning(false); }} className="text-gray-500 hover:text-white transition">
+                  <RotateCcw size={11} />
                 </button>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleRun}
-                disabled={running || submitting}
-                className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
-              >
-                <Play size={16} />
+            <div className="flex gap-2">
+              <button onClick={handleRun} disabled={running || submitting}
+                className="flex items-center gap-1.5 bg-gray-700 hover:bg-gray-600 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition disabled:opacity-50">
+                <Play size={14} />
                 {running ? "Running..." : "Run"}
               </button>
-
-              <button
-                onClick={handleSubmit}
-                disabled={running || submitting}
-                className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black px-5 py-2.5 rounded-lg text-sm font-medium transition disabled:opacity-50"
-              >
-                <Send size={16} />
-                {submitting ? "Submitting..." : "Submit"}
+              <button onClick={handleSubmit} disabled={running || submitting}
+                className="flex items-center gap-1.5 bg-yellow-500 hover:bg-yellow-600 text-black px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition disabled:opacity-50">
+                <Send size={14} />
+                {submitting ? "..." : "Submit"}
               </button>
             </div>
           </div>
