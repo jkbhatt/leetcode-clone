@@ -61,8 +61,7 @@ export const getProblemById = asyncHandler(async (req, res) => {
 
   // Check if current user has solved this problem
   const user = await User.findById(req.user._id);
-  const isSolved = user.solvedProblems.includes(id);
-
+  const isSolved = user.solvedProblems?.includes(id) || false;
   return res.status(200).json(
     new ApiResponse(
       200,
