@@ -14,3 +14,15 @@ connectDB().then(() => {
         console.log(`Server running on http://localhost: ${PORT}`);
       })
 })
+
+// Keep Render awake (free tier spins down after 15min)
+const RENDER_URL = "https://leetcode-clone-3r98.onrender.com/api/v1/healthcheck";
+
+setInterval(async () => {
+  try {
+    await fetch(RENDER_URL);
+    console.log("Keep-alive ping sent");
+  } catch (err) {
+    console.log("Keep-alive failed:", err.message);
+  }
+}, 14 * 60 * 1000); // every 14 minutes
