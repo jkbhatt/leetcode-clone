@@ -190,7 +190,7 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${difficultyColors[problem.difficulty]}`}>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${difficultyColors[problem.difficulty as keyof typeof difficultyColors]}`}>
                   {problem.difficulty}
                 </span>
               </div>
