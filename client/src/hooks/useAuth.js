@@ -12,7 +12,7 @@ export const useAuth = () => {
     const checkAuth = async () => {
       try {
         const res = await api.get("/auth/me");
-        setUser(res.data.data.user);   
+        setUser(res.data.user);   
       } catch {
         router.push("/login");
       } finally {
