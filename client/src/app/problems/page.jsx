@@ -11,6 +11,7 @@ import { Search } from "lucide-react";
 
 export default function ProblemsPage() {
   const { user, loading: authLoading } = useAuth();
+  console.log("DEBUG USER:", user);
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
