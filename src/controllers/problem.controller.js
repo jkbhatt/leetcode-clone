@@ -168,15 +168,23 @@ export const getSolvedProblems = asyncHandler(async (req, res) => {
 });
 // ✅ Get leaderboard
 export const getLeaderboard = asyncHandler(async (req, res) => {
-  const users = await User.find()
-    .select("username avatar solvedProblems createdAt")
-    .sort({ "solvedProblems": -1 })
-    .limit(20);
+  const users = await User.aggregate([
+    {
+      $project: {
+        username: 1,
+        avatar: 1,
+        createdAt: 1,
+        solvedCount: { $size: { $ifNull: ["$solvedProblems", []] } },
+      },
+    },
+    { $sort: { solvedCount: -1 } },
+    { $limit: 20 },
+  ]);
 
   const leaderboard = users.map((user, index) => ({
     rank: index + 1,
     username: user.username,
-    solved: user.solvedProblems.length,
+    solved: user.solvedCount,
     createdAt: user.createdAt,
   }));
 
